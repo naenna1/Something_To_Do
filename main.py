@@ -278,7 +278,7 @@ def main_menu():
         print("5) Update task")
         print("6) Create category")
         print("7) Show categories")
-        print("0) Exit")
+        print("0) Exit!")
         choice = input("Choice: ").strip()
 
         if choice == "1":
