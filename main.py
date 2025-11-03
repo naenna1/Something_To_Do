@@ -275,10 +275,10 @@ def main_menu():
         print("2) Show tasks")
         print("3) Mark task as completed")
         print("4) Delete task")
-        print("5) Aufgabe bearbeiten")
-        print("6) Kategorie anlegen")
-        print("7) Kategorien anzeigen")
-        print("0) Exit")
+        print("5) Update task")
+        print("6) Create category")
+        print("7) Show categories")
+        print("0) Exit!")
         choice = input("Choice: ").strip()
 
         if choice == "1":
