@@ -8,12 +8,12 @@ def add_category(name, description=""):
     cursor = connection.cursor()
 
     cursor.execute("""
-        INSERT INTO categories (name, description)
+        INSERT INTO category (name, description)
         VALUES (?, ?)
     """, (name.strip(), description.strip()))
 
-    connection.commit()
-    connection.close()
+    con.commit()
+    con.close()
     print(f"Category '{name}' has been created.")
 
 
