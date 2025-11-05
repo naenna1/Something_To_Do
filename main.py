@@ -38,18 +38,13 @@ def main_menu():
         choice = input("Choice: ").strip()
 
         # Aktionen 1–5 nur mit Login
-        if choice in ["1", "2", "3", "4", "5"] and not user:
+        if choice in ["1", "2", "3", "4", "5", "11"] and not user:
             print("Please login first!\n")
             continue
 
         if choice == "1":
             # Create task
             try:
-                user = get_logged_in_user()
-                if not user:
-                    print("Please login first!\n")
-                    continue
-
                 title = input_nonempty("Title (0 = back): ")
                 if is_back(title):
                     continue
@@ -80,19 +75,10 @@ def main_menu():
                 print("Error:", e)
 
         elif choice == "2":
-            # Show tasks
-            user = get_logged_in_user()
-            if not user:
-                print("Please login first!\n")
-                continue
             list_tasks(user['id'])
 
         elif choice == "3":
             # Mark completed
-            user = get_logged_in_user()
-            if not user:
-                print("Please login first!\n")
-                continue
             task = input("Task ID (0 = back): ").strip()
             if is_back(task):
                 continue
@@ -105,10 +91,6 @@ def main_menu():
 
         elif choice == "4":
             # Delete task
-            user = get_logged_in_user()
-            if not user:
-                print("Please login first!\n")
-                continue
             task = input("Task ID (0 = back): ").strip()
             if is_back(task):
                 continue
@@ -121,10 +103,6 @@ def main_menu():
 
         elif choice == "5":
             # Update task
-            user = get_logged_in_user()
-            if not user:
-                print("Please login first!\n")
-                continue
             task = input("Task ID (0 = back): ").strip()
             if is_back(task):
                 continue
@@ -161,6 +139,7 @@ def main_menu():
             user = get_logged_in_user()
             if user:
                 print(f"Logged in as {user['alias']}.\n")
+            continue
 
         elif choice == "9":
             # Logout
