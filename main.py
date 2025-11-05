@@ -1,4 +1,3 @@
-# main.py
 from datetime import datetime
 from db import init_db
 from auth import login_user, register_user, get_logged_in_user, logout_user
