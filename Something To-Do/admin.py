@@ -1,4 +1,3 @@
-import sqlite3
 from db import get_conn
 from auth import hash_pw
 
