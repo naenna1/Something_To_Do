@@ -183,3 +183,34 @@ def update_task(task_id, user_id, title=None, category_id=None, description=None
     con.commit()
     con.close()
     print(f"Task {task_id} has been updated.")
+
+
+#--------------------------------------
+# GUI-Anpassung
+
+
+def get_tasks(user_id, db_path=DB_PATH):
+    """
+    Liefert Task-Zeilen für die GUI:
+    (task.id, task.title, category.name, task.description, task.creation_date, task.completed, task.due_date)
+    """
+    con = get_conn(db_path)
+    cur = con.cursor()
+    cur.execute("""
+        SELECT task.id,
+               task.title,
+               category.name,
+               task.description,
+               task.creation_date,
+               task.completed,
+               task.due_date
+        FROM task
+        LEFT JOIN category ON task.category_id = category.id
+        WHERE task.user_id = ?
+        ORDER BY task.completed,
+                 COALESCE(task.due_date, '9999-12-31'),
+                 task.id
+    """, (user_id,))
+    rows = cur.fetchall()
+    con.close()
+    return rows

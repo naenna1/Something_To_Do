@@ -1,13 +1,12 @@
 from db import get_conn, DB_PATH
-from auth import logged_in_user, check_pw, hash_pw
+from auth import get_logged_in_user, set_logged_in_user, check_pw, hash_pw
 from utils import is_back
 
 def show_my_profile(db_path=DB_PATH):
-    if not logged_in_user:
+    user = get_logged_in_user()
+    if not user:
         print("Please login first.")
         return
-    user = logged_in_user
-    assert user is not None
     uid = user['id']
 
     con = get_conn(db_path)
@@ -50,12 +49,10 @@ def show_my_profile(db_path=DB_PATH):
 
 
 def change_alias(db_path=DB_PATH):
-    global logged_in_user
-    if not logged_in_user:
+    user = get_logged_in_user()
+    if not user:
         print("Please login first.")
         return
-    user = logged_in_user
-    assert user is not None
 
     new_alias = input("New alias (0 = back): ").strip()
     if is_back(new_alias):
@@ -66,8 +63,6 @@ def change_alias(db_path=DB_PATH):
 
     con = get_conn(db_path)
     cur = con.cursor()
-
-    # unique?
     cur.execute("SELECT 1 FROM users WHERE alias = ?", (new_alias,))
     if cur.fetchone():
         con.close()
@@ -78,16 +73,15 @@ def change_alias(db_path=DB_PATH):
     con.commit()
     con.close()
 
-    logged_in_user = {**user, "alias": new_alias}
+    set_logged_in_user({**user, "alias": new_alias})
     print("Alias updated.")
 
 
 def change_password(db_path=DB_PATH):
-    if not logged_in_user:
+    user = get_logged_in_user()
+    if not user:
         print("Please login first.")
         return
-    user = logged_in_user
-    assert user is not None
 
     current = input("Current password (0 = back): ").strip()
     if is_back(current):
@@ -124,12 +118,10 @@ def change_password(db_path=DB_PATH):
 
 
 def delete_own_account(db_path=DB_PATH):
-    global logged_in_user
-    if not logged_in_user:
+    user = get_logged_in_user()
+    if not user:
         print("Please login first.")
         return
-    user = logged_in_user
-    assert user is not None
 
     print("\nThis will permanently delete your account and your tasks.")
     confirm = input("Type DELETE to confirm (0 = back): ").strip()
@@ -154,18 +146,19 @@ def delete_own_account(db_path=DB_PATH):
     con.commit()
     con.close()
 
-    logged_in_user = None
+    set_logged_in_user(None)
     print("Your account has been deleted. Goodbye!")
 
 # Profil-Optionen
 def profile_menu():
     while True:
-        if not logged_in_user:
+        user = get_logged_in_user()
+        if not user:
             print("Please login first.")
             return
 
         print("\n=== Profile Menu ===")
-        print(f"Logged in as: {logged_in_user['alias']}")
+        print(f"Logged in as: {user['alias']}")
         print("1) Show my profile")
         print("2) Change alias")
         print("3) Change password")
@@ -182,8 +175,7 @@ def profile_menu():
             change_password()
         elif choice == "4":
             delete_own_account()
-            # If user deleted themselves, kick back to main
-            if not logged_in_user:
+            if not get_logged_in_user():  # Nutzer evtl. gelöscht → zurück
                 return
         elif choice == "0":
             return

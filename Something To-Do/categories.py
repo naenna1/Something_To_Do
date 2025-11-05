@@ -82,3 +82,17 @@ def delete_category(category_id):
     con.commit()
     con.close()
     print(f"Category with ID {category_id} has been deleted.")
+
+
+#--------------------------------------------------
+# GUI-Anpassung
+def get_categories(db_path=DB_PATH):
+    """
+    Liefert eine Liste [(id, name), ...] für die GUI.
+    """
+    con = get_conn(db_path)
+    cur = con.cursor()
+    cur.execute("SELECT id, name FROM category ORDER BY name")
+    rows = cur.fetchall()
+    con.close()
+    return rows

@@ -1,6 +1,6 @@
 import sqlite3
 import bcrypt
-from db import DB_PATH  # falls DB_PATH dort definiert ist; sonst direkt "todo.db"
+from db import DB_PATH
 
 # interner Login-Status NUR hier halten
 _logged_in_user = None  # Dict wie {"id": 1, "alias": "Max", "is_admin": 0}
@@ -122,3 +122,42 @@ def login_user(db_path=DB_PATH):
 
         else:
             print("Please choose 0–2.")
+
+#------------------------------------------
+# GUI-Login
+def authenticate(alias: str, password: str, db_path=DB_PATH):
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    cur.execute("""
+        SELECT id, password_hash, failed_attempts, locked, is_admin
+        FROM users WHERE alias = ?
+    """, (alias,))
+    row = cur.fetchone()
+
+    if not row:
+        con.close()
+        return None
+
+    uid, pw_hash, fails, locked, is_admin = row
+
+    if locked:
+        con.close()
+        return None
+
+    if check_pw(password, pw_hash):
+        # Login zählt als Erfolg → Fehlversuche zurücksetzen
+        cur.execute("UPDATE users SET failed_attempts = 0 WHERE id = ?", (uid,))
+        con.commit()
+        con.close()
+        user = {"id": uid, "alias": alias, "is_admin": int(is_admin)}
+        set_logged_in_user(user)
+        return user
+    else:
+        fails += 1
+        if fails >= 3:
+            cur.execute("UPDATE users SET locked = 1, failed_attempts = ? WHERE id = ?", (fails, uid))
+        else:
+            cur.execute("UPDATE users SET failed_attempts = ? WHERE id = ?", (fails, uid))
+        con.commit()
+        con.close()
+        return None

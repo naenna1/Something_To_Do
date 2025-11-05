@@ -2,9 +2,11 @@ from db import get_conn
 from auth import hash_pw
 
 def admin_show_users():
-    con, cur = get_conn()
+    con = get_conn()
+    cur = con.cursor()
     cur.execute("SELECT id, alias, locked, failed_attempts, is_admin FROM users ORDER BY id")
     rows = cur.fetchall()
+    con.close()
 
     print("\n=== Users ===")
     for r in rows:
@@ -16,17 +18,21 @@ def admin_show_users():
     print()
 
 def admin_unlock_user(user_id):
-    con, cur = get_conn()
+    con= get_conn()
+    cur = con.cursor()
     cur.execute("UPDATE users SET locked = 0, failed_attempts = 0 WHERE id = ?", (user_id,))
     con.commit()
     print("✅ User unlocked!")
+    con.close()
 
 def admin_reset_password(user_id, new_password):
-    con, cur = get_conn()
+    con= get_conn()
+    cur = con.cursor()
     cur.execute("UPDATE users SET password_hash = ? WHERE id = ?",
                 (hash_pw(new_password), user_id))
     con.commit()
     print("✅ Password updated!")
+    con.close()
 
 def admin_handle_choice(choice):
     if choice.upper() == "A":

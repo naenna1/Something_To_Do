@@ -112,15 +112,23 @@ def main_menu():
                 print("Invalid ID.")
                 continue
 
-            new_title = input("New title (empty = unchanged): ").strip() or None
-            new_category_name = input("New category name (empty = unchanged): ").strip()
-            new_category = get_or_create_category(new_category_name) if new_category_name else None
-            new_description = input("New description (empty = unchanged): ").strip() or None
+            new_title = input(
+                "New title (empty = unchanged): ").strip() or None
+            new_category_name = input(
+                "New category name (empty = unchanged): ").strip()
+            if new_category_name:
+                new_category = get_or_create_category(new_category_name)
+            else:
+                new_category = None  # None = Kategorie NICHT ändern
+
+            new_description = input(
+                "New description (empty = unchanged): ").strip() or None
             new_due_date = input_date_or_empty("New due date")
             if new_due_date == "BACK":
                 continue
 
-            update_task(task_id, user['id'], new_title, new_category, new_description, new_due_date)
+            update_task(task_id, user['id'], new_title, new_category,
+                        new_description, new_due_date)
 
         elif choice == "6":
             # Create category
