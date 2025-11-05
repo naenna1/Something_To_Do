@@ -49,7 +49,7 @@ def register_user(first_name, last_name, alias, plain_password, is_admin=False):
 # login, with password check and freeze by 3 wrong tries
 def login(alias, plain_password):
     cursor.execute("""
-        SELECT user_id, password, failed_attempts, freezed, is_admin
+        SELECT user_id, password, failed_attempts, freezed, is_admin, created_at
         FROM users WHERE alias=?
     """, (alias,))
     user = cursor.fetchone()
@@ -58,7 +58,7 @@ def login(alias, plain_password):
         print(f'{alias} does not exist!')
         return False
 
-    user_id, stored_hash, failed_attempts, freezed, is_admin = user
+    user_id, stored_hash, failed_attempts, freezed, is_admin, created_at = user
 
     if freezed:
         print('This account is blocked! Please contact admin!')
@@ -73,6 +73,7 @@ def login(alias, plain_password):
             "user_id": user_id,
             "alias": alias,
             "is_admin": bool(is_admin),
+            "created_at": created_at
         }
     else:
         failed_attempts += 1
@@ -94,21 +95,23 @@ def main_menu(user):
     print(f"\n Welcome back, {user['alias']}!")
 
     while True:
-        print('\n Main menu')
-        print('1 - personal information\n')
-        print('2️ - my todos\n')
+        print('\n=== Main menu ===')
+        print('1 - personal information')
+        print('2️ - my todos')
         if user['is_admin']:
-            print('️3 - user management\n')
-        print('0️ - logout\n')
+            print('3️ - user management')
+        print('0️ - logout')
 
         choice = input('Please choose your option:').strip()
 
         if choice == "1":
-            show_profile(user)
+            result = show_profile(user)
+            if result == 'logout':
+                break
         elif choice == "2":
             show_todos(user)
         elif choice == "3" and user["is_admin"]:
-            user_management()
+            user_management(user)
         elif choice == "0":
             print('Logout successful! See you next time!')
             break
@@ -121,17 +124,18 @@ def show_profile(user):
     for k, v in user.items():
         print(f"{k}: {v}")
     while True:
-        print('\nFunctions:')
-        print('1 - change my information\n')
-        print('2 - delete my account\n')
-        print('0 - exit\n')
+        print('\n=== Functions ===')
+        print('1 - change my information')
+        print('2 - delete my account')
+        print('0 - exit')
         choice = input('Please choose your option:').strip()
 
         if choice == "1":
             change_information(user)
         elif choice == "2":
-            delete_account(user)
-            break
+            result = delete_account(user)
+            if result == 'logout':
+                return 'logout'
         elif choice == "0":
             break
         else:
@@ -139,10 +143,10 @@ def show_profile(user):
 
 # change own information
 def change_information(user):
-    print('\nChange my information:')
-    print('\n1 - change my name')
-    print('\n2 - change my password')
-    print('\n0 - exit')
+    print('=== Change my information ===')
+    print('1 - change my name')
+    print('2 - change my password')
+    print('0 - exit')
     choice = input('Please choose your option:').strip()
 
     if choice == '1':
@@ -186,14 +190,15 @@ def delete_account(user):
     confirmation = input(f'\nType: "{alias} confirms to delete." to confirm.\n')
 
     if confirmation != f'{alias} confirms to delete.':
-        print('Pattern does not match! Deletion was cancelled!')
+        print('Pattern does not match! Deletion was cancelled!\n')
         return False
 
     cursor.execute("DELETE FROM users WHERE user_id=?", (user["user_id"],))
     conn.commit()
 
-    print(f"{alias}'s account has been deleted!")
-    return True
+    print(f"{alias}'s account has been deleted!\n")
+    return 'logout'
+
 
 # show to-do-list
 def show_todos(user):
@@ -210,11 +215,11 @@ def show_todos(user):
 # admin function, which allows admin to show users, reset their passwords and freeze/defreeze their account
 def user_management(user):
     while True:
-        print('\nUser management:')
-        print('\n1 - show all users')
-        print('\n2 - reset password')
-        print('\n3 -  freeze / defreeze user')
-        print('\n0 - exit\n')
+        print('=== User management ===')
+        print('1 - show all users')
+        print('2 - reset password')
+        print('3 -  freeze / defreeze user')
+        print('0 - exit')
 
         choice = input('Please choose your option:').strip()
 
@@ -281,7 +286,7 @@ def account_freeze():
         print('Id does not exist!')
         return
 
-
+    alias, freezed = row
     if freezed:
         new_state = 0
         action = 'defreezed'
