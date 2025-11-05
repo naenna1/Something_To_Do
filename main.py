@@ -38,7 +38,7 @@ def init_db(db_path=DB_PATH):
 # Kategorie erstellen
 def add_category(name, description=""):
     if not name.strip():
-        raise ValueError(f"'category' cannot be empty.")
+        raise ValueError("Category cannot be empty.")
 
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
@@ -50,7 +50,33 @@ def add_category(name, description=""):
 
     con.commit()
     con.close()
-    print(f"'category' '{name}' wurde erstellt.")
+    print(f"Category '{name}' has been created.")
+
+# Kategorie erstellen ( in 'Create task')
+def get_or_create_category(name):
+    if name is None or name.strip() == "":
+        return None
+
+    name = name.strip()
+    con = sqlite3.connect(DB_PATH)
+    cur = con.cursor()
+
+    # Kategorie suchen
+    cur.execute("SELECT id FROM category WHERE name = ?", (name,))
+    row = cur.fetchone()
+
+    if row:
+        con.close()
+        return row[0]  # vorhandene Kategorie
+
+    # Wenn nicht vorhanden -> neu anlegen
+    cur.execute("INSERT INTO category (name) VALUES (?)", (name,))
+    con.commit()
+
+    category_id = cur.lastrowid
+    con.close()
+    print(f"Category '{name}' has been created.")
+    return category_id
 
 # Kategorien anzeigen/auflisten
 def list_categories():
@@ -150,10 +176,18 @@ def list_tasks(db_path=DB_PATH):
     con = sqlite3.connect(db_path)
     cur = con.cursor()
     cur.execute("""
-        SELECT id, title, category_id, description, creation_date, completed, due_date
-        FROM task
-        ORDER BY completed ASC, COALESCE(due_date, '9999-12-31') ASC, id ASC
-    """)
+                SELECT task.id,
+                       task.title,
+                       category.name,
+                       task.description,
+                       task.creation_date,
+                       task.completed,
+                       task.due_date
+                FROM task
+                         LEFT JOIN category ON task.category_id = category.id
+                ORDER BY task.completed ASC,
+                         COALESCE(task.due_date, '9999-12-31') ASC, task.id ASC
+                """)
     rows = cur.fetchall()
     con.close()
 
@@ -161,20 +195,26 @@ def list_tasks(db_path=DB_PATH):
         print("\nNo tasks found.\n")
         return
 
-    print("\n=== Tasks ===")
+    print("\n=== Task List ===")
     for r in rows:
         task_id = r[0]
         title = r[1]
-        category_id = r[2]
+        category_name = r[2]
         description = r[3]
         creation_date = r[4]
         completed = r[5]
         due_date = r[6]
-        status = "✔️ Completed" if completed == 1 else "⭕ Open"
-        line = f"{task_id}: {title} [Category-ID: {category_id}] - {status} (Created: {creation_date})"
+
+        status = "Done" if completed == 1 else "Open"
+
+        line = f"{task_id}: {title}"
+        if category_name:
+            line += f" [{category_name}]"
+        line += f" - {status} (created: {creation_date})"
         if due_date:
-            line += f" | Due: {due_date}"
+            line += f" | due: {due_date}"
         print(line)
+
         if description:
             print("   Description:", description)
     print()
@@ -206,7 +246,6 @@ def update_task(task_id, title=None, category_id=None, description=None, due_dat
     con = sqlite3.connect(db_path)
     cur = con.cursor()
 
-    # Felder auswählen, die aktualisiert werden sollen
     updates = []
     values = []
 
@@ -223,6 +262,7 @@ def update_task(task_id, title=None, category_id=None, description=None, due_dat
         values.append(description.strip())
 
     if due_date is not None:
+        updates.append("due_date = ?")
         values.append(due_date)
 
     if not updates:
@@ -230,7 +270,7 @@ def update_task(task_id, title=None, category_id=None, description=None, due_dat
         con.close()
         return
 
-    values.append(task_id)  # ID ans Ende
+    values.append(task_id)
     sql = f"UPDATE task SET {', '.join(updates)} WHERE id = ?"
 
     cur.execute(sql, values)
@@ -248,9 +288,14 @@ def input_nonempty(prompt):
         print("Input cannot be empty.")
 
 def input_date_or_empty(prompt):
-    val = input(prompt + " (YYYY-MM-DD or empty): ").strip()
+    val = input(prompt + " (YYYY-MM-DD, empty = nothing, 0 = back to menu): ").strip()
+
+    if is_back(val):
+        return "BACK"
+
     if val == "":
         return None
+
     try:
         datetime.strptime(val, "%Y-%m-%d")
         return val
@@ -258,7 +303,7 @@ def input_date_or_empty(prompt):
         print("Please enter the date in the format YYYY-MM-DD.")
         return input_date_or_empty(prompt)
 
-def input_completed(prompt="Completed? (0/1 oder true/false) "):
+def input_completed(prompt="Completed? (0/1 or true/false) "):
     val = input(prompt).strip().lower()
     if val in ("1", "true", "ja", "y"):
         return 1
@@ -266,6 +311,9 @@ def input_completed(prompt="Completed? (0/1 oder true/false) "):
         return 0
     print("Please enter 0/1 or true/false.")
     return input_completed(prompt)
+
+def is_back(val):
+    return val.strip() == "0"
 
 ## MENÜ ##
 def main_menu():
@@ -283,19 +331,32 @@ def main_menu():
 
         if choice == "1":
             try:
-                title = input_nonempty("Title: ")
-                category_id = input("Category-ID (or empty): ").strip()
-                if category_id == "":
-                    category_id = None
-                else:
-                    category_id = int(category_id)
-
-                description = input("Description (optional): ").strip()
+                title = input("Title (0 = back to menu): ").strip()
+                if is_back(title):
+                    continue
+                if title == "":
+                    print("Title cannot be empty.")
+                    continue
+                category_name = input(
+                    "Category name (empty = none, 0 = back): ").strip()
+                if is_back(category_name):
+                    continue
+                category_id = get_or_create_category(
+                    category_name) if category_name != "" else None
+                description = input("Description (optional, 0 = back): ").strip()
+                if is_back(description):
+                    continue
+                if description == "":
+                    description = None
                 creation_date = input_date_or_empty("Created on")
+                if creation_date == "BACK":
+                    continue
                 if creation_date is None:
                     creation_date = datetime.now().strftime("%Y-%m-%d")
                 completed = input_completed()
                 due_date = input_date_or_empty("Due on")
+                if due_date == "BACK":
+                    continue
 
                 create_task(title, category_id, description, creation_date, completed, due_date)
                 print("Task saved.\n")
@@ -304,60 +365,100 @@ def main_menu():
 
         elif choice == "2":
             list_tasks()
-
         elif choice == "3":
             try:
-                task_id = int(input_nonempty("Task-ID: "))
+                task = input("Task ID (0 = back): ").strip()
+                if is_back(task):
+                    continue
+                task_id = int(task)
                 complete_task(task_id)
-                print()
+                print("Task marked as completed.\n")
             except Exception as e:
                 print("Error:", e, "\n")
 
         elif choice == "4":
             try:
-                task_id = int(input_nonempty("Task-ID: "))
+                task = input("Task ID (0 = back): ").strip()
+                if is_back(task):
+                    continue
+                task_id = int(task)
                 delete_task(task_id)
-                print()
+                print("Task deleted.\n")
             except Exception as e:
                 print("Error:", e, "\n")
 
         elif choice == "5":
             try:
-                task_id = int(input_nonempty("Task-ID: "))
-                print(
-                    "Only change what you want to change. Leave blank = stays as it is..")
+                task = input("Task ID (0 = back): ").strip()
+                if is_back(task):
+                    continue
+                task_id = int(task)
 
-                new_title = input("New title (empty = unchanged): ").strip()
+                print("Only change what you want to change.")
+                print("Leave blank = unchanged | 0 = cancel and go back")
+
+                # Title
+                new_title = input("New title: ").strip()
+                if is_back(new_title):
+                    print("Edit canceled.\n")
+                    continue
                 if new_title == "":
                     new_title = None
 
-                new_category = input(
-                    "New Category-ID (empty = unchanged): ").strip()
-                if new_category == "":
+                # Category
+                new_category_name = input(
+                    "New category name (leave blank = unchanged): ").strip()
+                if is_back(new_category_name):
+                    print("Edit canceled.\n")
+                    continue
+                if new_category_name == "":
                     new_category = None
                 else:
-                    new_category = int(new_category)
+                    new_category = get_or_create_category(new_category_name)
 
-                new_description = input(
-                    "New description (empty = unchanged): ").strip()
+                # Description
+                new_description = input("New description: ").strip()
+                if is_back(new_description):
+                    print("Edit canceled.\n")
+                    continue
                 if new_description == "":
                     new_description = None
 
-                new_due_date = input_date_or_empty("New due-date:")
+                # Due date
+                new_due_date = input_date_or_empty("New due date")
+                if new_due_date == "BACK":
+                    print("Edit canceled.\n")
+                    continue
+
                 update_task(task_id, new_title, new_category, new_description,
                             new_due_date)
+                print("Task updated.\n")
+
             except Exception as e:
                 print("Error:", e, "\n")
 
         elif choice == "6":
             try:
-                name = input_nonempty("Category name: ")
-                description = input("Description (optional): ").strip()
+                name = input("Category name (0 = back): ").strip()
+                if is_back(name):
+                    continue
+                if name == "":
+                    print("Category name cannot be empty.\n")
+                    continue
+
+                description = input(
+                    "Description (optional, 0 = back): ").strip()
+                if is_back(description):
+                    continue
+
                 add_category(name, description)
+                print("Category added.\n")
+
             except Exception as e:
                 print("Error:", e, "\n")
 
         elif choice == "7":
+            print("\n=== Category List ===")
             list_categories()
 
         elif choice == "0":
@@ -365,7 +466,7 @@ def main_menu():
             break
 
         else:
-            print("Please enter 0–6.\n")
+            print("Please enter 0–7.\n")
 
 ## Start des Programms ##
 if __name__ == "__main__":
