@@ -2,9 +2,10 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 from datetime import datetime
 
-from auth import authenticate, get_logged_in_user, logout_user
+from auth import authenticate, get_logged_in_user, logout_user, hash_pw
 from tasks import get_tasks, create_task, complete_task, delete_task, update_task
 from categories import get_categories, add_category, delete_category, get_or_create_category
+from db import init_db, get_conn
 
 
 class App(tk.Tk):
@@ -71,6 +72,9 @@ class TasksFrame(tk.Frame):
         tk.Button(btnbar, text="Delete Task", command=self.delete_selected).pack(side="left", padx=4)
         tk.Button(btnbar, text="Edit Task…", command=self.open_task_editor).pack(side="left", padx=4)
         tk.Button(btnbar, text="Categories…", command=self.open_categories).pack(side="left", padx=4)
+        # Admin-Panel nur für Admins
+        if self.user.get("is_admin"):
+            tk.Button(btnbar, text="Admin…", command=self.open_admin).pack(side="left", padx=4)
         tk.Button(btnbar, text="Logout", command=self.do_logout).pack(side="right", padx=4)
 
         # Listbox + Scrollbar
@@ -105,6 +109,9 @@ class TasksFrame(tk.Frame):
 
     def open_categories(self):
         CategoryManager(self)
+
+    def open_admin(self):
+        AdminUsersWindow(self)
 
     def _selected_task_id(self):
         """
@@ -234,6 +241,108 @@ class CategoryManager(tk.Toplevel):
         except Exception as e:
             messagebox.showerror("Error", str(e))
             self.refresh()
+class AdminUsersWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Admin – Users")
+        self.geometry("560x420")
+        self.resizable(False, False)
+
+        self.listbox = tk.Listbox(self, font=("Consolas", 10))
+        self.listbox.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+
+        bar = tk.Frame(self)
+        bar.pack(fill="x", padx=8, pady=(4, 8))
+
+        tk.Button(bar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
+        tk.Button(bar, text="Unlock", command=self.unlock_selected).pack(side="left", padx=4)
+        tk.Button(bar, text="Reset PW…", command=self.reset_pw_selected).pack(side="left", padx=4)
+        tk.Button(bar, text="Toggle Admin", command=self.toggle_admin_selected).pack(side="left", padx=4)
+        tk.Button(bar, text="Close", command=self.destroy).pack(side="right", padx=4)
+
+        self.refresh()
+
+    # --- Helpers ---
+
+    def _selected_user_id(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Bitte zuerst einen Benutzer auswählen.")
+            return None
+        line = self.listbox.get(sel[0])
+        try:
+            # Format: "ID | alias | ROLE | LOCK | Fails:n"
+            uid = int(line.split("|", 1)[0].strip())
+            return uid
+        except Exception:
+            messagebox.showerror("Fehler", "Konnte User-ID nicht erkennen.")
+            return None
+
+    def refresh(self):
+        self.listbox.delete(0, tk.END)
+        con = get_conn()
+        cur = con.cursor()
+        cur.execute("SELECT id, alias, is_admin, locked, failed_attempts FROM users ORDER BY id")
+        rows = cur.fetchall()
+        con.close()
+
+        if not rows:
+            self.listbox.insert(tk.END, "Keine Benutzer gefunden.")
+            return
+
+        for (uid, alias, is_admin, locked, fails) in rows:
+            role = "ADMIN" if is_admin else "USER"
+            lk   = "LOCKED" if locked else "OK"
+            self.listbox.insert(tk.END, f"{uid:>3} | {alias:<16} | {role:<5} | {lk:<6} | Fails:{fails}")
+
+    # --- Actions ---
+
+    def unlock_selected(self):
+        uid = self._selected_user_id()
+        if uid is None:
+            return
+        con = get_conn()
+        cur = con.cursor()
+        cur.execute("UPDATE users SET locked=0, failed_attempts=0 WHERE id=?", (uid,))
+        con.commit()
+        con.close()
+        messagebox.showinfo("OK", "User entsperrt.")
+        self.refresh()
+
+    def reset_pw_selected(self):
+        uid = self._selected_user_id()
+        if uid is None:
+            return
+        new_pw = simpledialog.askstring("Reset Password", "Neues Passwort:", show="*")
+        if new_pw is None or new_pw.strip() == "":
+            return
+        con = get_conn()
+        cur = con.cursor()
+        cur.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_pw(new_pw.strip()), uid))
+        con.commit()
+        con.close()
+        messagebox.showinfo("OK", "Passwort aktualisiert.")
+        self.refresh()
+
+    def toggle_admin_selected(self):
+        uid = self._selected_user_id()
+        if uid is None:
+            return
+        con = get_conn()
+        cur = con.cursor()
+        # aktuellen Status lesen
+        cur.execute("SELECT is_admin FROM users WHERE id=?", (uid,))
+        row = cur.fetchone()
+        if not row:
+            con.close()
+            messagebox.showerror("Fehler", "User nicht gefunden.")
+            return
+        new_flag = 0 if int(row[0]) == 1 else 1
+        cur.execute("UPDATE users SET is_admin=? WHERE id=?", (new_flag, uid))
+        con.commit()
+        con.close()
+        messagebox.showinfo("OK", f"Admin-Recht {'gesetzt' if new_flag else 'entfernt'}.")
+        self.refresh()
 
 
 class CreateTaskDialog(tk.Toplevel):
@@ -418,5 +527,6 @@ class TaskEditor(tk.Toplevel):
 
 if __name__ == "__main__":
     # Starte nur die GUI (CLI bleibt unabhängig in main.py)
+    init_db()
     app = App()
     app.mainloop()
