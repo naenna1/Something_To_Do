@@ -1,0 +1,54 @@
+GUI in PyCharm starten (kurz & knackig)
+
+1) Projekt öffnen
+   - In PyCharm: File → Open… und den Projektordner wählen (der Ordner mit gui.py)
+
+2) Python-Interpreter einstellen
+   - File → Settings → Project → Python Interpreter
+   - Einen vorhandenen venv wählen oder Add Interpreter → Virtualenv erstellen (Python 3.10+ empfohlen)
+
+3) Abhängigkeiten installieren
+   - Terminal in PyCharm öffnen und ausführen:
+     pip install pillow
+   - (Linux nur falls nötig:)
+     sudo apt-get install python3-tk
+
+4) Run/Debug-Konfiguration anlegen
+   - Run → Edit Configurations… → + → Python
+   - Name: GUI
+   - Script path: gui.py auswählen
+   - Working directory: Projektwurzel (damit DB & Bilder gefunden werden)
+   - Parameters: leer lassen
+   - Python interpreter: den Interpreter aus Schritt 2 wählen
+
+5) Starten
+   - Run → Run 'GUI' (oder ▶️ oben rechts)
+   - Beim ersten Start wird die Datenbank automatisch angelegt
+
+
+Kurze Nutzungshinweise (GUI)
+
+- Login/Account:
+  Falls noch kein Account: „Create account…“ anlegen, dann mit Alias/Passwort einloggen.
+- Aufgaben:
+  Create Task (Titel Pflicht, Due-Date optional YYYY-MM-DD)
+  Edit Task…, Complete Task, Delete Task
+  Doppelklick auf eine Aufgabe → Bearbeiten
+- Kategorien:
+  Categories… → hinzufügen/löschen
+- Admin (falls vorhanden):
+  Admin… → Benutzer entsperren, PW zurücksetzen, Admin-Rechte umschalten
+- Logout:
+  Logout-Button
+
+
+Troubleshooting (kurz)
+
+- Fenster startet nicht / Module fehlen:
+  pip install pillow prüfen; unter Linux python3-tk installieren.
+- Logo/Icon fehlt:
+  logo.png/app.ico sind optional – kein Problem.
+- Relative Pfade/DB nicht gefunden:
+  Working directory = Projektwurzel setzen.
+- Datum-Fehler:
+  Due-Date im Format YYYY-MM-DD eingeben.

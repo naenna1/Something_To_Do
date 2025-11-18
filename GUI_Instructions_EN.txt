@@ -1,0 +1,54 @@
+Run the GUI in PyCharm (Quick Guide)
+
+1) Open the project
+   - In PyCharm: File → Open… and select the project folder (the one containing gui.py)
+
+2) Set up the Python interpreter
+   - File → Settings → Project → Python Interpreter
+   - Select an existing virtual environment or create one via Add Interpreter → Virtualenv (Python 3.10+ recommended)
+
+3) Install dependencies
+   - Open the PyCharm terminal and run:
+     pip install pillow
+   - (Linux only if needed:)
+     sudo apt-get install python3-tk
+
+4) Create a Run/Debug configuration
+   - Run → Edit Configurations… → + → Python
+   - Name: GUI
+   - Script path: select gui.py
+   - Working directory: project root (so DB & images are found)
+   - Parameters: leave empty
+   - Python interpreter: choose the interpreter from step 2
+
+5) Run the app
+   - Run → Run 'GUI' (or ▶️ in the top right)
+   - The database will be created automatically on the first start.
+
+
+Quick usage notes (GUI)
+
+- Login/Account:
+  If you don’t have an account yet, click “Create account…” and log in with your alias/password.
+- Tasks:
+  Create Task (Title required, Due date optional YYYY-MM-DD)
+  Edit Task…, Complete Task, Delete Task
+  Double-click a task → Edit
+- Categories:
+  Categories… → add/delete categories
+- Admin (if available):
+  Admin… → unlock users, reset passwords, toggle admin rights
+- Logout:
+  Logout button
+
+
+Troubleshooting (Quick)
+
+- Window doesn’t open / missing modules:
+  Check pip install pillow; on Linux install python3-tk.
+- Logo/Icon missing:
+  logo.png/app.ico are optional – no problem.
+- Relative paths / DB not found:
+  Set Working directory = project root in Run configuration.
+- Date format error:
+  Enter due date in format YYYY-MM-DD.
