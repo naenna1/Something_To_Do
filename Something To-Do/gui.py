@@ -1,20 +1,89 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, ttk, font
 from datetime import datetime
-
 from auth import authenticate, get_logged_in_user, logout_user, hash_pw
 from tasks import get_tasks, create_task, complete_task, delete_task, update_task
 from categories import get_categories, add_category, delete_category, get_or_create_category
 from db import init_db, get_conn
+from PIL import Image, ImageTk
 
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Something To-Do")
-        self.geometry("640x520")
-        self.user = None
+        # Einheitliche Schriftart definieren
+        DEFAULT_FONT = ("Segoe UI", 10)
+        CAPTION_FONT = ("Segoe UI SemiBold", 10)
+        TITLE_FONT = ("Segoe UI SemiBold", 12)
 
+        self.option_add("*Font", DEFAULT_FONT)
+        self.option_add("*TLabel.Font", DEFAULT_FONT)
+        self.option_add("*TButton.Font", DEFAULT_FONT)
+        self.option_add("*TEntry.Font", DEFAULT_FONT)
+        self.option_add("*TCombobox.Font", DEFAULT_FONT)
+        self.option_add("*Text.Font", DEFAULT_FONT)
+
+        # --- Dark Theme & Styles ---
+        self.configure(bg="#121212")
+        style = ttk.Style(self)
+        style.theme_use("clam")
+
+        # Grundfarben
+        BG = "#121212"
+        SURFACE = "#1e1e1e"
+        FG = "#e8e8e8"
+        ACCENT = "#4f8cff"  # Primärfarbe für Buttons
+
+        # Widgets allgemein
+        style.configure("TLabel", background=BG, foreground=FG)
+        style.configure("TFrame", background=BG)
+        style.configure("TButton", background=SURFACE, foreground=FG, borderwidth=0, padding=8)
+        style.map("TButton",
+                  background=[("active", "#2a2a2a")],
+                  relief=[("pressed", "sunken"), ("!pressed", "flat")])
+
+        # Primär-Button
+        style.configure("Primary.TButton", background=ACCENT, foreground="white", padding=8)
+        style.map("Primary.TButton", background=[("active", "#3b6fd1")])
+
+        # Entry-Felder
+        style.configure("TEntry", fieldbackground=SURFACE, foreground=FG, insertcolor=FG)
+
+        # Scrollbars dunkel
+        style.configure("Vertical.TScrollbar", background="#2a2a2a")
+        style.map("Vertical.TScrollbar", background=[("active", "#3a3a3a")])
+        style.configure("Horizontal.TScrollbar", background="#2a2a2a")
+        style.map("Horizontal.TScrollbar", background=[("active", "#3a3a3a")])
+
+        # Dunkle Combobox
+        style.configure("Dark.TCombobox",
+                        fieldbackground="#1e1e1e",
+                        background="#1e1e1e",
+                        foreground="#e8e8e8",
+                        arrowcolor="#e8e8e8",
+                        bordercolor="#1e1e1e")
+        style.map("Dark.TCombobox",
+                  fieldbackground=[("readonly", "#1e1e1e")],
+                  foreground=[("readonly", "#e8e8e8")],
+                  background=[("active", "#2a2a2a")])
+
+        # Fenstericon (optional)
+        try:
+            self.iconbitmap("app.ico")
+        except Exception:
+            pass
+
+        # Fenstergröße & Zentrierung
+        self.title("Something To-Do")
+        window_width = 900
+        window_height = 620
+        self.minsize(window_width, window_height)
+        self.update_idletasks()
+        x = (self.winfo_screenwidth() // 2) - (window_width // 2)
+        y = (self.winfo_screenheight() // 2) - (window_height // 2)
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        self.user = None
         self.login_frame = LoginFrame(self, on_success=self.on_login_success)
         self.login_frame.pack(fill="both", expand=True)
 
@@ -27,19 +96,37 @@ class App(tk.Tk):
 
 class LoginFrame(tk.Frame):
     def __init__(self, master, on_success):
-        super().__init__(master)
+        super().__init__(master, bg="#121212")
         self.on_success = on_success
 
-        tk.Label(self, text="Alias").grid(row=0, column=0, sticky="w", padx=8, pady=8)
-        tk.Label(self, text="Password").grid(row=1, column=0, sticky="w", padx=8, pady=8)
+        # Grid für Zentrierung
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        # Logo groß, mittig
+        try:
+            img = Image.open("logo.png")
+            img = img.resize((240, 240))
+            self._logo_img = ImageTk.PhotoImage(img)
+            tk.Label(self, image=self._logo_img, bg="#121212").grid(row=0, column=0, columnspan=2, pady=(24, 12))
+            offset = 1
+        except Exception:
+            offset = 0
+
+        ttk.Label(self, text="Alias").grid(row=offset+0, column=0, sticky="e", padx=10, pady=8)
+        ttk.Label(self, text="Password").grid(row=offset+1, column=0, sticky="e", padx=10, pady=8)
 
         self.alias_var = tk.StringVar()
         self.pw_var = tk.StringVar()
 
-        tk.Entry(self, textvariable=self.alias_var).grid(row=0, column=1, padx=8, pady=8)
-        tk.Entry(self, textvariable=self.pw_var, show="*").grid(row=1, column=1, padx=8, pady=8)
+        ttk.Entry(self, textvariable=self.alias_var, width=24).grid(row=offset+0, column=1, sticky="w", padx=10)
+        ttk.Entry(self, textvariable=self.pw_var, show="*", width=24).grid(row=offset+1, column=1, sticky="w", padx=10)
 
-        tk.Button(self, text="Login", command=self.try_login).grid(row=2, column=0, columnspan=2, pady=12)
+        # Button-Reihe: Login (Primary) + Create Account
+        btnrow = ttk.Frame(self)
+        btnrow.grid(row=offset+2, column=0, columnspan=2, pady=(18, 10))
+        ttk.Button(btnrow, text="Login", style="Primary.TButton", command=self.try_login).pack(side="left", padx=6)
+        ttk.Button(btnrow, text="Create account…", command=self.open_register).pack(side="left", padx=6)
 
     def try_login(self):
         alias = self.alias_var.get().strip()
@@ -53,38 +140,105 @@ class LoginFrame(tk.Frame):
                 return
         messagebox.showerror("Login failed", "Alias oder Passwort falsch oder Account gesperrt.")
 
+    def open_register(self):
+        RegisterDialog(self, on_success=lambda: None)
+
+
+class RegisterDialog(tk.Toplevel):
+    def __init__(self, master, on_success):
+        super().__init__(master)
+        self.title("Create Account")
+        self.configure(bg="#121212")
+        self.resizable(False, False)
+        self.grab_set()
+        self.on_success = on_success
+
+        frm = ttk.Frame(self, padding=12)
+        frm.pack(fill="both", expand=True)
+
+        ttk.Label(frm, text="Alias").grid(row=0, column=0, sticky="e", padx=6, pady=6)
+        ttk.Label(frm, text="Password").grid(row=1, column=0, sticky="e", padx=6, pady=6)
+        ttk.Label(frm, text="Repeat").grid(row=2, column=0, sticky="e", padx=6, pady=6)
+
+        self.alias = tk.StringVar()
+        self.pw1 = tk.StringVar()
+        self.pw2 = tk.StringVar()
+
+        ttk.Entry(frm, textvariable=self.alias, width=28).grid(row=0, column=1, sticky="w", padx=6)
+        ttk.Entry(frm, textvariable=self.pw1, show="*", width=28).grid(row=1, column=1, sticky="w", padx=6)
+        ttk.Entry(frm, textvariable=self.pw2, show="*", width=28).grid(row=2, column=1, sticky="w", padx=6)
+
+        row = ttk.Frame(frm)
+        row.grid(row=3, column=0, columnspan=2, pady=(10, 0))
+        ttk.Button(row, text="Cancel", command=self.destroy).pack(side="left", padx=6)
+        ttk.Button(row, text="Create", style="Primary.TButton", command=self._create).pack(side="left", padx=6)
+
+    def _create(self):
+        alias = (self.alias.get() or "").strip()
+        pw1 = self.pw1.get()
+        pw2 = self.pw2.get()
+
+        if not alias:
+            messagebox.showwarning("Input", "Alias cannot be empty.")
+            return
+        if not pw1 or not pw2:
+            messagebox.showwarning("Input", "Password cannot be empty.")
+            return
+        if pw1 != pw2:
+            messagebox.showwarning("Input", "Passwords do not match.")
+            return
+
+        con = get_conn()
+        cur = con.cursor()
+
+        # Alias muss einzigartig sein
+        cur.execute("SELECT 1 FROM users WHERE alias = ?", (alias,))
+        if cur.fetchone():
+            con.close()
+            messagebox.showerror("Error", "Alias already exists.")
+            return
+
+        cur.execute("INSERT INTO users (alias, password_hash) VALUES (?, ?)", (alias, hash_pw(pw1)))
+        con.commit()
+        con.close()
+
+        messagebox.showinfo("Success", f"User '{alias}' created. You can now login.")
+        self.on_success()
+        self.destroy()
+
 
 class TasksFrame(tk.Frame):
     def __init__(self, master, user):
-        super().__init__(master)
+        super().__init__(master, bg="#121212")
         self.user = user
 
         # Header
-        tk.Label(self, text=f"Logged in as: {user['alias']}", font=("Arial", 12, "bold")).pack(anchor="w", padx=8, pady=(8, 0))
+        ttk.Label(self, text=f"Logged in as: {user['alias']}").pack(anchor="w", padx=8, pady=(8, 0))
 
         # Buttons
-        btnbar = tk.Frame(self)
+        btnbar = ttk.Frame(self)
         btnbar.pack(fill="x", padx=8, pady=8)
 
-        tk.Button(btnbar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
-        tk.Button(btnbar, text="Create Task", command=self.open_create_dialog).pack(side="left", padx=4)
-        tk.Button(btnbar, text="Complete Task", command=self.complete_selected).pack(side="left", padx=4)
-        tk.Button(btnbar, text="Delete Task", command=self.delete_selected).pack(side="left", padx=4)
-        tk.Button(btnbar, text="Edit Task…", command=self.open_task_editor).pack(side="left", padx=4)
-        tk.Button(btnbar, text="Categories…", command=self.open_categories).pack(side="left", padx=4)
-        # Admin-Panel nur für Admins
+        ttk.Button(btnbar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
+        ttk.Button(btnbar, text="Create Task", command=self.open_create_dialog).pack(side="left", padx=4)
+        ttk.Button(btnbar, text="Complete Task", command=self.complete_selected).pack(side="left", padx=4)
+        ttk.Button(btnbar, text="Delete Task", command=self.delete_selected).pack(side="left", padx=4)
+        ttk.Button(btnbar, text="Edit Task…", command=self.open_task_editor).pack(side="left", padx=4)
+        ttk.Button(btnbar, text="Categories…", command=self.open_categories).pack(side="left", padx=4)
         if self.user.get("is_admin"):
-            tk.Button(btnbar, text="Admin…", command=self.open_admin).pack(side="left", padx=4)
-        tk.Button(btnbar, text="Logout", command=self.do_logout).pack(side="right", padx=4)
+            ttk.Button(btnbar, text="Admin…", command=self.open_admin).pack(side="left", padx=4)
+        ttk.Button(btnbar, text="Logout", command=self.do_logout).pack(side="right", padx=4)
 
         # Listbox + Scrollbar
-        list_wrap = tk.Frame(self)
+        list_wrap = tk.Frame(self, bg="#121212")
         list_wrap.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
-        self.listbox = tk.Listbox(list_wrap)
+        self.listbox = tk.Listbox(list_wrap, bg="#1e1e1e", fg="#e8e8e8",
+                                  selectbackground="#3b6fd1", selectforeground="white",
+                                  highlightthickness=0, borderwidth=0)
         self.listbox.pack(side="left", fill="both", expand=True)
 
-        scrollbar = tk.Scrollbar(list_wrap, orient="vertical", command=self.listbox.yview)
+        scrollbar = ttk.Scrollbar(list_wrap, orient="vertical", command=self.listbox.yview)
         scrollbar.pack(side="right", fill="y")
         self.listbox.config(yscrollcommand=scrollbar.set)
 
@@ -97,15 +251,31 @@ class TasksFrame(tk.Frame):
 
     def refresh(self):
         self.listbox.delete(0, tk.END)
-        rows = get_tasks(self.user['id'])
+        rows = get_tasks(self.user['id'], is_admin=bool(self.user.get('is_admin')))
         if not rows:
             self.listbox.insert(tk.END, "No tasks found.")
             return
-        for (task_id, title, cat_name, desc, created, completed, due) in rows:
+        for row in rows:
+            # Kompatibel, falls alte Daten ohne owner_alias auftauchen
+            if len(row) >= 8:
+                task_id, title, cat_name, desc, created, completed, due, owner_alias = row
+            else:
+                task_id, title, cat_name, desc, created, completed, due = row
+                owner_alias = None
+
             status = "✓" if completed == 1 else "•"
             cat_part = f"[{cat_name}] " if cat_name else ""
+            owner_part = ""
+            # Admin soll alle Owner sehen; optional: immer anzeigen -> entferne die if-Bedingung
+            if owner_alias:
+                if self.user.get("is_admin"):
+                    owner_part = f" — @{owner_alias}"
+                # Falls du es IMMER anzeigen willst, nutze stattdessen:
+                # owner_part = f" — @{owner_alias}"
+
             due_part = f" | due: {due}" if due else ""
-            self.listbox.insert(tk.END, f"{status} {task_id}: {cat_part}{title}{due_part}")
+            self.listbox.insert(tk.END, f"{status} {task_id}: {cat_part}{title}{owner_part}{due_part}")
+
 
     def open_categories(self):
         CategoryManager(self)
@@ -115,7 +285,7 @@ class TasksFrame(tk.Frame):
 
     def _selected_task_id(self):
         """
-        Liest die aktuell selektierte Zeile und extrahiert die Task-ID aus dem Muster:
+        Liest die aktuell selektierte Zeile und extrahiert die Task-ID aus:
         '✓ 12: [Cat] Title | due: 2025-11-01'
         """
         sel = self.listbox.curselection()
@@ -124,7 +294,6 @@ class TasksFrame(tk.Frame):
             return None
         line = self.listbox.get(sel[0])
         try:
-            # schneide das führende Symbol ab und nimm Zahl vor dem ersten ':'
             after_status = line.split(" ", 1)[1]
             id_str = after_status.split(":", 1)[0]
             return int(id_str.strip())
@@ -144,7 +313,8 @@ class TasksFrame(tk.Frame):
         tid = self._selected_task_id()
         if tid is None:
             return
-        complete_task(tid, self.user['id'])
+        is_admin = bool(self.user.get('is_admin'))
+        complete_task(tid, self.user['id'], is_admin=is_admin)
         self.refresh()
 
     def delete_selected(self):
@@ -152,7 +322,8 @@ class TasksFrame(tk.Frame):
         if tid is None:
             return
         if messagebox.askyesno("Delete", "Task wirklich löschen?"):
-            delete_task(tid, self.user['id'])
+            is_admin = bool(self.user.get('is_admin'))
+            delete_task(tid, self.user['id'], is_admin=is_admin)
             self.refresh()
 
     def open_create_dialog(self):
@@ -160,9 +331,8 @@ class TasksFrame(tk.Frame):
 
     def do_logout(self):
         logout_user()
-        self.pack_forget()  # TasksFrame verstecken
+        self.pack_forget()
         self.master.tasks_frame = None
-        # zurück zum LoginFrame
         self.master.login_frame = LoginFrame(self.master, self.master.on_login_success)
         self.master.login_frame.pack(fill="both", expand=True)
 
@@ -173,19 +343,22 @@ class CategoryManager(tk.Toplevel):
         self.title("Manage Categories")
         self.geometry("460x380")
         self.resizable(False, False)
+        self.configure(bg="#121212")
 
         # Liste
-        self.listbox = tk.Listbox(self)
+        self.listbox = tk.Listbox(self, bg="#1e1e1e", fg="#e8e8e8",
+                                  selectbackground="#3b6fd1", selectforeground="white",
+                                  highlightthickness=0, borderwidth=0)
         self.listbox.pack(fill="both", expand=True, padx=8, pady=(8, 4))
 
         # Button-Leiste
-        bar = tk.Frame(self)
+        bar = ttk.Frame(self)
         bar.pack(fill="x", padx=8, pady=(4, 8))
 
-        tk.Button(bar, text="Add…", command=self.add_category_dialog).pack(side="left", padx=4)
-        tk.Button(bar, text="Delete", command=self.delete_selected).pack(side="left", padx=4)
-        tk.Button(bar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
-        tk.Button(bar, text="Close", command=self.destroy).pack(side="right", padx=4)
+        ttk.Button(bar, text="Add…", command=self.add_category_dialog).pack(side="left", padx=4)
+        ttk.Button(bar, text="Delete", command=self.delete_selected).pack(side="left", padx=4)
+        ttk.Button(bar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
+        ttk.Button(bar, text="Close", command=self.destroy).pack(side="right", padx=4)
 
         self.refresh()
 
@@ -241,24 +414,30 @@ class CategoryManager(tk.Toplevel):
         except Exception as e:
             messagebox.showerror("Error", str(e))
             self.refresh()
+
+
 class AdminUsersWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master)
         self.title("Admin – Users")
         self.geometry("560x420")
         self.resizable(False, False)
+        self.configure(bg="#121212")
 
-        self.listbox = tk.Listbox(self, font=("Consolas", 10))
+        self.listbox = tk.Listbox(self, font=("Consolas", 10),
+                                  bg="#1e1e1e", fg="#e8e8e8",
+                                  selectbackground="#3b6fd1", selectforeground="white",
+                                  highlightthickness=0, borderwidth=0)
         self.listbox.pack(fill="both", expand=True, padx=8, pady=(8, 4))
 
-        bar = tk.Frame(self)
+        bar = ttk.Frame(self)
         bar.pack(fill="x", padx=8, pady=(4, 8))
 
-        tk.Button(bar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
-        tk.Button(bar, text="Unlock", command=self.unlock_selected).pack(side="left", padx=4)
-        tk.Button(bar, text="Reset PW…", command=self.reset_pw_selected).pack(side="left", padx=4)
-        tk.Button(bar, text="Toggle Admin", command=self.toggle_admin_selected).pack(side="left", padx=4)
-        tk.Button(bar, text="Close", command=self.destroy).pack(side="right", padx=4)
+        ttk.Button(bar, text="Refresh", command=self.refresh).pack(side="left", padx=4)
+        ttk.Button(bar, text="Unlock", command=self.unlock_selected).pack(side="left", padx=4)
+        ttk.Button(bar, text="Reset PW…", command=self.reset_pw_selected).pack(side="left", padx=4)
+        ttk.Button(bar, text="Toggle Admin", command=self.toggle_admin_selected).pack(side="left", padx=4)
+        ttk.Button(bar, text="Close", command=self.destroy).pack(side="right", padx=4)
 
         self.refresh()
 
@@ -292,7 +471,7 @@ class AdminUsersWindow(tk.Toplevel):
 
         for (uid, alias, is_admin, locked, fails) in rows:
             role = "ADMIN" if is_admin else "USER"
-            lk   = "LOCKED" if locked else "OK"
+            lk = "LOCKED" if locked else "OK"
             self.listbox.insert(tk.END, f"{uid:>3} | {alias:<16} | {role:<5} | {lk:<6} | Fails:{fails}")
 
     # --- Actions ---
@@ -330,7 +509,6 @@ class AdminUsersWindow(tk.Toplevel):
             return
         con = get_conn()
         cur = con.cursor()
-        # aktuellen Status lesen
         cur.execute("SELECT is_admin FROM users WHERE id=?", (uid,))
         row = cur.fetchone()
         if not row:
@@ -351,43 +529,100 @@ class CreateTaskDialog(tk.Toplevel):
         self.user = user
         self.on_created = on_created
         self.title("Create Task")
-        self.grab_set()  # modaler Dialog
+        self.configure(bg="#121212")
+        self.grab_set()
+
+        # Grid-Konfig
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
+
+        # --- Admin: Owner-Auswahl laden ---
+        self.is_admin = bool(self.user.get("is_admin"))
+        self.owner_choices = []   # [(alias, id)]
+        self.owner_var = tk.StringVar()
+        if self.is_admin:
+            try:
+                con = get_conn()
+                cur = con.cursor()
+                cur.execute("SELECT id, alias FROM users ORDER BY alias COLLATE NOCASE")
+                rows = cur.fetchall()
+            finally:
+                con.close()
+            self.owner_choices = [(alias, uid) for (uid, alias) in rows]
+            # Default: aktueller User vorauswählen (falls vorhanden), sonst erster Eintrag
+            default_alias = self.user.get("alias")
+            default_alias = default_alias if any(a == default_alias for a, _ in self.owner_choices) else (self.owner_choices[0][0] if self.owner_choices else "")
+            self.owner_var.set(default_alias)
 
         # Title
-        tk.Label(self, text="Title *").grid(row=0, column=0, sticky="w", padx=8, pady=(10, 4))
+        ttk.Label(self, text="Title *").grid(row=0, column=0, sticky="w", padx=10, pady=(12, 6))
         self.title_var = tk.StringVar()
-        tk.Entry(self, textvariable=self.title_var, width=40).grid(row=0, column=1, padx=8, pady=(10, 4))
+        tk.Entry(self, textvariable=self.title_var, width=44,
+                 bg="#1e1e1e", fg="#e8e8e8",
+                 insertbackground="#e8e8e8",
+                 highlightthickness=0, borderwidth=0, relief="flat"
+                 ).grid(row=0, column=1, sticky="ew", padx=10, pady=(12, 6))
 
         # Description
-        tk.Label(self, text="Description").grid(row=1, column=0, sticky="w", padx=8, pady=4)
-        self.desc_var = tk.StringVar()
-        tk.Entry(self, textvariable=self.desc_var, width=40).grid(row=1, column=1, padx=8, pady=4)
+        ttk.Label(self, text="Description").grid(row=1, column=0, sticky="w", padx=10, pady=6)
+        self.desc_text = tk.Text(self, height=5,
+                                 bg="#1e1e1e", fg="#e8e8e8",
+                                 insertbackground="#e8e8e8",
+                                 highlightthickness=0, borderwidth=0, relief="flat")
+        self.desc_text.grid(row=1, column=1, sticky="nsew", padx=10, pady=6)
 
-        # Category dropdown + optional neues Feld
-        tk.Label(self, text="Category").grid(row=2, column=0, sticky="w", padx=8, pady=4)
-        cats = get_categories()
-        self.cat_choices = [("— none —", None)] + [(name, cid) for (cid, name, *_rest) in cats]
-        self.cat_var = tk.StringVar(value=self.cat_choices[0][0])
+        row_idx = 2
 
+        # Admin: Owner-Auswahl anzeigen
+        if self.is_admin and self.owner_choices:
+            ttk.Label(self, text="Owner").grid(row=row_idx, column=0, sticky="w", padx=10, pady=6)
+            self.owner_combo = ttk.Combobox(self, values=[a for a, _ in self.owner_choices],
+                                            textvariable=self.owner_var, state="readonly",
+                                            width=42, style="Dark.TCombobox")
+            self.owner_combo.grid(row=row_idx, column=1, sticky="w", padx=10, pady=6)
+            row_idx += 1
+
+        # Category
+        ttk.Label(self, text="Category").grid(row=row_idx, column=0, sticky="w", padx=10, pady=6)
+        cats = get_categories()  # [(id, name)]
+        self.cat_choices = [("— none —", None)] + [(name, cid) for (cid, name) in cats]
         names_only = [name for (name, _cid) in self.cat_choices]
-        self.cat_menu = tk.OptionMenu(self, self.cat_var, *names_only)
-        self.cat_menu.grid(row=2, column=1, sticky="w", padx=8, pady=4)
+        self.cat_var = tk.StringVar(value=names_only[0])
+        self.cat_combo = ttk.Combobox(self, values=names_only,
+                                      textvariable=self.cat_var,
+                                      state="readonly", width=42,
+                                      style="Dark.TCombobox")
+        self.cat_combo.grid(row=row_idx, column=1, sticky="w", padx=10, pady=6)
+        row_idx += 1
 
         # New category (optional)
-        tk.Label(self, text="New category (optional)").grid(row=3, column=0, sticky="w", padx=8, pady=4)
+        ttk.Label(self, text="New category (optional)").grid(row=row_idx, column=0, sticky="w", padx=10, pady=6)
         self.new_cat_var = tk.StringVar()
-        tk.Entry(self, textvariable=self.new_cat_var, width=40).grid(row=3, column=1, padx=8, pady=4)
+        tk.Entry(self, textvariable=self.new_cat_var, width=44,
+                 bg="#1e1e1e", fg="#e8e8e8",
+                 insertbackground="#e8e8e8",
+                 highlightthickness=0, borderwidth=0, relief="flat"
+                 ).grid(row=row_idx, column=1, sticky="w", padx=10, pady=6)
+        row_idx += 1
 
         # Due date
-        tk.Label(self, text="Due date (YYYY-MM-DD, optional)").grid(row=4, column=0, sticky="w", padx=8, pady=4)
+        ttk.Label(self, text="Due date (YYYY-MM-DD, optional)").grid(row=row_idx, column=0, sticky="w", padx=10, pady=6)
         self.due_var = tk.StringVar()
-        tk.Entry(self, textvariable=self.due_var, width=20).grid(row=4, column=1, sticky="w", padx=8, pady=4)
+        tk.Entry(self, textvariable=self.due_var, width=22,
+                 bg="#1e1e1e", fg="#e8e8e8",
+                 insertbackground="#e8e8e8",
+                 highlightthickness=0, borderwidth=0, relief="flat"
+                 ).grid(row=row_idx, column=1, sticky="w", padx=10, pady=6)
+        row_idx += 1
 
         # Buttons
-        btns = tk.Frame(self)
-        btns.grid(row=5, column=0, columnspan=2, pady=12)
-        tk.Button(btns, text="Cancel", command=self.destroy).pack(side="left", padx=6)
-        tk.Button(btns, text="Create", command=self._create).pack(side="left", padx=6)
+        btns = ttk.Frame(self)
+        btns.grid(row=row_idx, column=0, columnspan=2, pady=12, padx=10, sticky="e")
+        ttk.Button(btns, text="Cancel", command=self.destroy).pack(side="right", padx=6)
+        ttk.Button(btns, text="Create", style="Primary.TButton", command=self._create).pack(side="right", padx=6)
+
+        # Description-Feld darf wachsen
+        self.grid_rowconfigure(1, weight=1)
 
     def _validate_date(self, val):
         if not val:
@@ -406,27 +641,38 @@ class CreateTaskDialog(tk.Toplevel):
                 return cid
         return None
 
+    def _owner_user_id(self):
+        """Liefert die Ziel-User-ID: bei Admin aus Combobox, sonst aktueller User."""
+        if not self.is_admin or not self.owner_choices:
+            return self.user['id']
+        chosen_alias = self.owner_var.get()
+        for alias, uid in self.owner_choices:
+            if alias == chosen_alias:
+                return uid
+        return self.user['id']  # Fallback
+
     def _create(self):
-        title = self.title_var.get().strip()
+        title = (self.title_var.get() or "").strip()
         if not title:
             messagebox.showerror("Error", "Title darf nicht leer sein.")
             return
 
-        description = self.desc_var.get().strip() or None
+        description = self.desc_text.get("1.0", "end").strip() or None
 
-        # Kategorie: entweder Dropdown, oder "New category" Feld
-        new_cat_name = self.new_cat_var.get().strip()
+        # Kategorie: Dropdown oder neues Feld
+        new_cat_name = (self.new_cat_var.get() or "").strip()
         if new_cat_name:
             category_id = get_or_create_category(new_cat_name)
         else:
             category_id = self._selected_category_id()
 
-        due = self._validate_date(self.due_var.get().strip())
+        due = self._validate_date((self.due_var.get() or "").strip())
         if due == "INVALID":
             return
 
         creation_date = datetime.now().strftime("%Y-%m-%d")
         completed = 0
+        owner_user_id = self._owner_user_id()
 
         try:
             create_task(
@@ -436,13 +682,15 @@ class CreateTaskDialog(tk.Toplevel):
                 creation_date=creation_date,
                 completed=completed,
                 due_date=due,
-                user_id=self.user['id']
+                user_id=owner_user_id
             )
-            messagebox.showinfo("Success", "Task created.")
+            owner_hint = f" for @{self.owner_var.get()}" if self.is_admin else ""
+            messagebox.showinfo("Success", f"Task created{owner_hint}.")
             self.on_created()
             self.destroy()
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
 
 
 class TaskEditor(tk.Toplevel):
@@ -454,9 +702,10 @@ class TaskEditor(tk.Toplevel):
         self.title(f"Edit Task {task_id}")
         self.geometry("420x380")
         self.resizable(False, False)
+        self.configure(bg="#121212")
 
-        # === Daten laden ===
-        rows = get_tasks(user['id'])
+        # === Daten laden (Admin darf alle sehen) ===
+        rows = get_tasks(user['id'], is_admin=bool(user.get('is_admin')))
         task = next((r for r in rows if r[0] == task_id), None)
 
         if task is None:
@@ -464,32 +713,39 @@ class TaskEditor(tk.Toplevel):
             self.destroy()
             return
 
-        (_id, title, cat, desc, created, completed, due) = task
-        self.initial_completed = int(completed)  # merken, um später zu wissen, ob wir "complete" setzen müssen
+        # (_id, title, cat, desc, created, completed, due, [owner_alias])
+        if len(task) >= 8:
+            (_id, title, cat, desc, created, completed, due, _owner) = task
+        else:
+            (_id, title, cat, desc, created, completed, due) = task
+
+        self.initial_completed = int(completed)
 
         # === UI Felder ===
-        tk.Label(self, text="Title:").pack(anchor="w", padx=8, pady=(10, 0))
+        ttk.Label(self, text="Title:").pack(anchor="w", padx=8, pady=(10, 0))
         self.title_var = tk.StringVar(value=title or "")
-        tk.Entry(self, textvariable=self.title_var).pack(fill="x", padx=8)
+        ttk.Entry(self, textvariable=self.title_var).pack(fill="x", padx=8)
 
-        tk.Label(self, text="Description:").pack(anchor="w", padx=8, pady=(10, 0))
-        self.desc_text = tk.Text(self, height=4)
+        ttk.Label(self, text="Description:").pack(anchor="w", padx=8, pady=(10, 0))
+        self.desc_text = tk.Text(self, height=4, bg="#1e1e1e", fg="#e8e8e8",
+                                 insertbackground="#e8e8e8", highlightthickness=0, borderwidth=0)
         self.desc_text.pack(fill="both", padx=8)
         if desc:
             self.desc_text.insert("1.0", desc)
 
-        tk.Label(self, text="Due date (YYYY-MM-DD):").pack(anchor="w", padx=8, pady=(10, 0))
+        ttk.Label(self, text="Due date (YYYY-MM-DD):").pack(anchor="w", padx=8, pady=(10, 0))
         self.due_var = tk.StringVar(value=due if due else "")
-        tk.Entry(self, textvariable=self.due_var).pack(fill="x", padx=8)
+        ttk.Entry(self, textvariable=self.due_var).pack(fill="x", padx=8)
 
         self.completed_var = tk.IntVar(value=self.initial_completed)
-        tk.Checkbutton(self, text="Completed", variable=self.completed_var).pack(anchor="w", padx=8, pady=(10, 0))
+        tk.Checkbutton(self, text="Completed", variable=self.completed_var,
+                       bg="#121212", fg="#e8e8e8", selectcolor="#121212").pack(anchor="w", padx=8, pady=(10, 0))
 
         # Buttons
-        btn_bar = tk.Frame(self)
+        btn_bar = ttk.Frame(self)
         btn_bar.pack(fill="x", padx=8, pady=10)
-        tk.Button(btn_bar, text="Save", command=self.save).pack(side="right", padx=8)
-        tk.Button(btn_bar, text="Cancel", command=self.destroy).pack(side="right", padx=8)
+        ttk.Button(btn_bar, text="Save", style="Primary.TButton", command=self.save).pack(side="right", padx=8)
+        ttk.Button(btn_bar, text="Cancel", command=self.destroy).pack(side="right", padx=8)
 
     def save(self):
         new_title = self.title_var.get().strip()
@@ -501,21 +757,19 @@ class TaskEditor(tk.Toplevel):
         new_due = self.due_var.get().strip()
         new_due = new_due if new_due else None
         new_completed = int(self.completed_var.get())
+        is_admin = bool(self.user.get('is_admin'))
 
         try:
-            # 1) Felder (ohne completed) aktualisieren – deine update_task nimmt completed nicht an
             update_task(
                 self.task_id,
                 self.user['id'],
                 title=new_title,
                 description=new_desc,
-                due_date=new_due
+                due_date=new_due,
+                is_admin=is_admin
             )
-
-            # 2) Wenn vorher offen (0) und jetzt gesetzt (1): als erledigt markieren
             if self.initial_completed == 0 and new_completed == 1:
-                complete_task(self.task_id, self.user['id'])
-
+                complete_task(self.task_id, self.user['id'], is_admin=is_admin)
         except Exception as e:
             messagebox.showerror("Error", str(e))
             return
@@ -526,7 +780,6 @@ class TaskEditor(tk.Toplevel):
 
 
 if __name__ == "__main__":
-    # Starte nur die GUI (CLI bleibt unabhängig in main.py)
     init_db()
     app = App()
     app.mainloop()

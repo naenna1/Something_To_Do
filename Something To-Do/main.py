@@ -7,6 +7,7 @@ from categories import add_category, get_or_create_category, list_categories
 from profile import profile_menu
 from utils import input_nonempty, input_date_or_empty, is_back
 
+
 def main_menu():
     while True:
         user = get_logged_in_user()
@@ -37,10 +38,13 @@ def main_menu():
 
         choice = input("Choice: ").strip()
 
-        # Aktionen 1–5 nur mit Login
+        # Aktionen 1–5 und 11 nur mit Login
         if choice in ["1", "2", "3", "4", "5", "11"] and not user:
             print("Please login first!\n")
             continue
+
+        # Für Bequemlichkeit: Flag einmal berechnen
+        is_admin = bool(user.get('is_admin')) if user else False
 
         if choice == "1":
             # Create task
@@ -75,7 +79,8 @@ def main_menu():
                 print("Error:", e)
 
         elif choice == "2":
-            list_tasks(user['id'])
+            # Show tasks (Admin sieht alle)
+            list_tasks(user['id'], is_admin=is_admin)
 
         elif choice == "3":
             # Mark completed
@@ -87,7 +92,7 @@ def main_menu():
             except ValueError:
                 print("Invalid ID.")
                 continue
-            complete_task(task_id, user['id'])
+            complete_task(task_id, user['id'], is_admin=is_admin)
 
         elif choice == "4":
             # Delete task
@@ -99,7 +104,7 @@ def main_menu():
             except ValueError:
                 print("Invalid ID.")
                 continue
-            delete_task(task_id, user['id'])
+            delete_task(task_id, user['id'], is_admin=is_admin)
 
         elif choice == "5":
             # Update task
@@ -112,23 +117,27 @@ def main_menu():
                 print("Invalid ID.")
                 continue
 
-            new_title = input(
-                "New title (empty = unchanged): ").strip() or None
-            new_category_name = input(
-                "New category name (empty = unchanged): ").strip()
+            new_title = input("New title (empty = unchanged): ").strip() or None
+            new_category_name = input("New category name (empty = unchanged): ").strip()
             if new_category_name:
                 new_category = get_or_create_category(new_category_name)
             else:
                 new_category = None  # None = Kategorie NICHT ändern
 
-            new_description = input(
-                "New description (empty = unchanged): ").strip() or None
+            new_description = input("New description (empty = unchanged): ").strip() or None
             new_due_date = input_date_or_empty("New due date")
             if new_due_date == "BACK":
                 continue
 
-            update_task(task_id, user['id'], new_title, new_category,
-                        new_description, new_due_date)
+            update_task(
+                task_id,
+                user['id'],
+                new_title,
+                new_category,
+                new_description,
+                new_due_date,
+                is_admin=is_admin
+            )
 
         elif choice == "6":
             # Create category
@@ -184,6 +193,7 @@ def main_menu():
 
         else:
             print("Please enter a valid option.\n")
+
 
 if __name__ == "__main__":
     init_db()
